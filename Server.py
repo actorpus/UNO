@@ -50,8 +50,14 @@ class MasterServer:
         if self.game_running: return
         self.game_running = True
 
+        self.current_game = uno.Game(
+            *[
+                client.name for client in self.clients
+            ]
+        )
 
-
+        for i, client in enumerate(self.clients):
+            client.send_game_update(i)
 
 
 class Client(threading.Thread):
@@ -77,6 +83,11 @@ class Client(threading.Thread):
         self.sock.send(int.to_bytes(
             0b00000000,
             1, 'big'))
+
+    def send_game_update(self, i):
+        status = self.server.current_game.get_status(i)
+
+
 
     def death_spiral(self):
         self.alive = False

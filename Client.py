@@ -140,7 +140,6 @@ class UnoClient:
             else:
                 self.render_menu()
 
-
 if __name__ == '__main__':
     drawingtest.main()
 
