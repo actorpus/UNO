@@ -131,50 +131,85 @@ class Game:
     def player_no_move(self):
         if self.current_pickup_amount == 0:
             self.hands[self.current_player].append(self.deck.pop(0))
-        if self.current_pickup_amount > 0:
-            for i in range(0,self.current_pickup_amount):
+
+        if 0 < self.current_pickup_amount <= len(self.deck):
+            for i in range(0, self.current_pickup_amount):
                 self.hands[self.current_player].append(self.deck.pop(0))
             self.current_pickup_amount = 0
         self.turns.append(self.turns.pop(0))
 
 
 def demo():
-    # game = Game()
-    #
-    # player_1_uuid = game.add_player("Alex")
-    # player_2_uuid = game.add_player("Dan")
+    rencard = lambda x: {
+                            "M": "\033[90m",
+                            "R": "\033[91m",
+                            "Y": "\033[93m",
+                            "G": "\033[92m",
+                            "B": "\033[94m"}[x[0]] + x[0] + {
+                            "M": "\033[30m",
+                            "R": "\033[31m",
+                            "Y": "\033[33m",
+                            "G": "\033[32m",
+                            "B": "\033[34m"}[x[0]] + x[1] + "\033[0m"
 
-    players = ["Alex", "Dan"]
+    rennum = lambda x: str(x) if x < 10 else "9+"
+
+    def can_move(top, hand):
+        if "M" in [_[0] for _ in hand]: return True
+        if top[0] in [_[0] for _ in hand]: return True
+        if top[1] in [_[1] for _ in hand]: return True
+        return False
+
+    players = ["\033[35mAlex\033[0m", "\033[36mDan\033[0m"]
     game = Game(*players)
-    print(game.hands)
 
     while not game.is_game_over():
         player = players.index(game.get_status(0)["current_turn"])
 
         print(f"Its {players[player]}'s Turn!")
+        print()
         status = game.get_status(player)
-        print("RAW STATUS", status)
-        print(f"The top card is {status['top_card']}")
-        print(f"Current pickup stack is {status['current_pickup_amount']}")
-        print(f"Your hand is {status['your_hand']}  (dont tell the other person ;) )")
+
+        if status["is_game_over"]:
+            print(status["is_game_over"], "has won the game... L!")
+            return
+
+        # print("RAW STATUS", status)
+        # print(f"There are {rennum(status['deck_size']):2s} cards in the deck")
+        # print(f"          {rennum(status['cards_in_play_size']):2s} cards in play")
+        print(f"The top card is {rencard(status['top_card']):{66 - len(rencard(status['top_card']))}s} {rennum(status['deck_size']):2s} cards in the deck")
+        print(f"Current pickup stack is {str(status['current_pickup_amount']):{50 - 21 - len(str(status['current_pickup_amount']))}s} {rennum(status['cards_in_play_size']):2s} cards in play")
+        print(f"Your hand is {' '.join(rencard(_) for _ in list(sorted(status['your_hand'], key=lambda x: {'R': 1, 'Y': 2, 'G': 3, 'B': 4, 'M': 5}[x[0]])))}")
 
         move = ""
         error = BAD_MOVE
 
+        if not can_move(status['top_card'], status['your_hand']):
+            print("You cant move :/")
+            move = ""
+            error = VALID_MOVE
+            time.sleep(3)
+
         while error != VALID_MOVE:
-            print("Make a move!")
+            print("")
             move = input("> ")
 
             if not move:
                 error = VALID_MOVE
                 continue
 
+            if len(move) != 2:
+                error = BAD_MOVE
+                continue
+
+            move = move[0].upper() + move[1]
+
             if move[0] == "M":
                 print("The color please")
 
                 color = ""
                 while color not in ["r", "y", "g", "b"]:
-                    color = input("> ")
+                    color = input("> ").lower()[:1]
 
                 move = color.upper() + move[1]
 
@@ -188,6 +223,8 @@ def demo():
             game.player_move(move)
         else:
             game.player_no_move()
+
+        print("\n\n\n")
 
 
 if __name__ == '__main__':

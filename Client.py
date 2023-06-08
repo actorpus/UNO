@@ -3,6 +3,8 @@ import msvcrt
 import socket
 import os
 import sys
+import time
+
 import drawingtest
 
 try:
@@ -43,7 +45,7 @@ except OSError:
 
 IP = "192.168.56.1"
 PORT = 31875
-CLIENT_VERSION = "v0.0.1"
+CLIENT_VERSION = "v0.0.2"
 NAME = input("name")
 CLIENT_UPDATE_FREQUENCY = 0.2
 
@@ -51,7 +53,13 @@ CLIENT_UPDATE_FREQUENCY = 0.2
 class UnoClient:
     def __init__(self):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server.connect((IP, PORT))
+
+        try:
+            self.server.connect((IP, PORT))
+        except ConnectionRefusedError:
+            print("Failed to connect to server")
+            time.sleep(1)
+            sys.exit(0)
 
         self.send_magic_start()
 
@@ -74,7 +82,32 @@ class UnoClient:
             update = self.server.recv(update).decode()
             update = json.loads(update)
 
+            self.in_game = bool(self.server.recv(1)[0] & 0b00000001)
+
             self.lobby_waiting = update
+
+    def request_game_start(self):
+        self.server.send(b"STRT")
+
+    def render_menu(self):
+        scr_w, scr_h = os.get_terminal_size()
+        if scr_w < 64 or scr_h < 16:
+            print("\033[31mResize!\033[0m Window to small to render correctly, please resize.")
+            return
+
+        print()
+        print(" Uno!" + " " * (scr_w - 6 - len(CLIENT_VERSION)) + CLIENT_VERSION)
+        print()
+        print(" In lobby with:")
+
+        for member in self.lobby_waiting:
+            print(" -", member)
+
+        print("\n" * (scr_h - 8 - len(self.lobby_waiting)))
+
+        grey = "\033[90m"
+        print(f" [ESC] Close  {grey}[y] Chat\033[0m  {grey if len(self.lobby_waiting) <= 1 else ''}[SPACE] Start Game\033[0m")
+        print(" " * (scr_w - 10) + "©Alex&Dan")
 
     def run(self):
         while self.running:
@@ -100,26 +133,12 @@ class UnoClient:
                     ...
 
                 elif key == b' ' and not self.in_game and len(self.lobby_waiting) > 1:
-                    ...
+                    self.request_game_start()
 
-            scr_w, scr_h = os.get_terminal_size()
-            if scr_w < 64 or scr_h < 16:
-                print("\033[31mResize!\033[0m Window to small to render correctly, please resize.")
-                continue
-
-            print()
-            print(" Uno!" + " " * (scr_w - 6 - len(CLIENT_VERSION)) + CLIENT_VERSION)
-            print()
-            print(" In lobby with:")
-
-            for member in self.lobby_waiting:
-                print(" -", member)
-
-            print("\n" * (scr_h - 8 - len(self.lobby_waiting)))
-
-            grey = "\033[90m"
-            print(f" [ESC] Close  {grey}[y] Chat\033[0m  {grey if len(self.lobby_waiting) <= 1 else ''}[SPACE] Start Game\033[0m")
-            print(" " * (scr_w - 12) + "웃 ©Alex&Dan")
+            if self.in_game:
+                ...
+            else:
+                self.render_menu()
 
 
 if __name__ == '__main__':

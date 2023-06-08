@@ -3,13 +3,13 @@ import socket
 import threading
 import time
 import datetime
-
+import uno
 
 CLIENT_UPDATE_FREQUENCY = 0.1
 CLIENT_HEART_BEAT = 5
 CLIENT_TTL = 30  # time before abandoning
 SERVER_PORT = 31875
-SERVER_VERSION = "v0.0.1"
+SERVER_VERSION = "v0.0.2"
 
 
 class MasterServer:
@@ -19,6 +19,9 @@ class MasterServer:
 
         self.self_ip = socket.gethostbyname(socket.gethostname())
         print(" [ \033[32mMS    \033[0m ] Discovered my ip.", self.self_ip)
+
+        self.game_running = False
+        self.current_game: uno.Game | None = None
 
     def run(self):
         print(" [ \033[32mMS    \033[0m ] Starting server on port", SERVER_PORT)
@@ -43,6 +46,13 @@ class MasterServer:
         for client in self.clients:
             client.send_pregame_update()
 
+    def start_game(self):
+        if self.game_running: return
+        self.game_running = True
+
+
+
+
 
 class Client(threading.Thread):
     def __init__(self, sock, port, master_server):
@@ -64,6 +74,10 @@ class Client(threading.Thread):
         self.sock.send(len(data).to_bytes(2, 'big'))
         self.sock.send(data)
 
+        self.sock.send(int.to_bytes(
+            0b00000000,
+            1, 'big'))
+
     def death_spiral(self):
         self.alive = False
         self.sock.close()
@@ -76,6 +90,10 @@ class Client(threading.Thread):
             self.alive_bookmark = time.time()
             print(f" [ \033[34mC{self.port}\033[0m ] Ponged")
             return
+
+        elif packet == b"STRT":
+            print(f" [ \033[34mC{self.port}\033[0m ] Started the game!")
+            self.server.start_game()
 
     def run(self) -> None:
         print(f" [ \033[34mC{self.port}\033[0m ] Client Proses alive")
